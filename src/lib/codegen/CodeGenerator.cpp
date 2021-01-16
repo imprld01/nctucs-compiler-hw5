@@ -29,7 +29,7 @@ void CodeGenerator::visit(ProgramNode &p_program) {
 
     // Generate RISC-V instructions for program header
     dumpInstrs("%s%s%s%s", 
-        "   .file ", this->in_file_name, "\n",
+        "   .file \"", this->in_file_name, "\"\n",
         "   .option nopic\n"
     );
 
