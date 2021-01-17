@@ -7,7 +7,7 @@ IfNode::IfNode(const uint32_t line, const uint32_t col,
     : AstNode{line, col}, condition(p_condition), body(p_body),
       else_body(p_else) {}
 
-const ExpressionNode *IfNode::getCondition() const { return condition.get(); }
+ExpressionNode *IfNode::getCondition() { return condition.get(); }
 
 void IfNode::accept(AstNodeVisitor &p_visitor) { p_visitor.visit(*this); }
 

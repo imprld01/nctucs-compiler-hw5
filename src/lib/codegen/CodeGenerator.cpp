@@ -26,10 +26,6 @@ void CodeGenerator::dumpInstrs(const char *format, ...) {
     va_end(args);
 }
 
-void dumpPorgram() {
-    // TODO
-}
-
 void CodeGenerator::dumpGloblVar(const string &varName, const PType &varType) {
     if (varType.isPrimitiveInteger()) {
         dumpInstrs(".comm %s, 4, 4\n", varName.c_str());
@@ -275,25 +271,50 @@ void CodeGenerator::visit(BinaryOperatorNode &p_bin_op) {
     p_bin_op.getRightOperand()->accept(*this);
     popFromStackTo("t1");
     popFromStackTo("t0");
-    // assert is integer
-    switch (p_bin_op.getOp()) {
-        case Operator::kPlusOp:
-            dumpInstrs("    add t0, t0, t1\n");
-            break;
-        case Operator::kMinusOp:
-            dumpInstrs("    sub t0, t0, t1\n");
-            break;
-        case Operator::kModOp:
-            dumpInstrs("    rem t0, t0, t1\n");
-            break;
-        case Operator::kDivideOp:
-            dumpInstrs("    div t0, t0, t1\n");
-            break;
-        case Operator::kMultiplyOp:
-            dumpInstrs("    mul t0, t0, t1\n");
-            break;
+
+    if (ifCond) {
+        string b;
+        switch (p_bin_op.getOp()) {
+            case Operator::kEqualOp:
+                b = "bne";
+                break;
+            case Operator::kLessOp:
+                b = "bge";
+                break;
+            case Operator::kGreaterOp:
+                b = "ble";
+                break;
+            case Operator::kLessOrEqualOp:
+                b = "bgt";
+                break;
+            case Operator::kGreaterOrEqualOp:
+                b = "blt";
+                break;
+        }
+        dumpInstrs("    %s t0, t1, L%d\n", b.c_str(), elseLabel);
     }
-    pushToStackFrom("t0");
+
+    else {
+        // assert is integer
+        switch (p_bin_op.getOp()) {
+            case Operator::kPlusOp:
+                dumpInstrs("    add t0, t0, t1\n");
+                break;
+            case Operator::kMinusOp:
+                dumpInstrs("    sub t0, t0, t1\n");
+                break;
+            case Operator::kModOp:
+                dumpInstrs("    rem t0, t0, t1\n");
+                break;
+            case Operator::kDivideOp:
+                dumpInstrs("    div t0, t0, t1\n");
+                break;
+            case Operator::kMultiplyOp:
+                dumpInstrs("    mul t0, t0, t1\n");
+                break;
+        }
+        pushToStackFrom("t0");
+    }
     dumpInstrs("// binary ends\n");
 }
 
@@ -320,7 +341,7 @@ void CodeGenerator::visit(FunctionInvocationNode &p_func_invocation) {
         arg.accept(*this);
         // popFromStackTo(regs[i].c_str());
     }
-    for (int i = args.size() - 1; i>=0; i--) {
+    for (int i = args.size() - 1; i >= 0; i--) {
         popFromStackTo(regs[i].c_str());
     }
     dumpInstrs("////\n");
@@ -390,9 +411,34 @@ void CodeGenerator::visit(AssignmentNode &p_assignment) {
 }
 
 void CodeGenerator::visit(ReadNode &p_read) {
+    pushVarAddrToStack(*p_read.getTarget());
+    dumpInstrs("    jal ra, readInt\n");
+    popFromStackTo("t0");
+    dumpInstrs("    sw a0, 0(t0)\n");
+}
+
+void CodeGenerator::dumpLabel(int i) {
+    dumpInstrs("L%d:\n", i);
 }
 
 void CodeGenerator::visit(IfNode &p_if) {
+    auto cond = p_if.condition.get();
+    auto body = p_if.body.get();
+    auto elze = p_if.else_body.get();
+
+    elseLabel = labelCnt++;
+    int mainLabel = labelCnt++;
+    doneLabel = labelCnt++;
+
+    ifCond = true;
+    cond->accept(*this);
+    dumpLabel(mainLabel);
+    body->accept(*this);
+    dumpInstrs("    j L%d\n", doneLabel);
+    dumpLabel(elseLabel);
+    if (elze) elze->accept(*this);
+    dumpLabel(doneLabel);
+    ifCond = false;
 }
 
 void CodeGenerator::visit(WhileNode &p_while) {
@@ -443,9 +489,9 @@ void CodeGenerator::loadRegs(const char *a, const char *b, const char *c) {
 }
 
 void CodeGenerator::saveRegs() {
-   // pushToStackFrom("sp");
-   // pushToStackFrom("s0");
-  /*  pushToStackFrom("t0");
+    // pushToStackFrom("sp");
+    // pushToStackFrom("s0");
+    /*  pushToStackFrom("t0");
     pushToStackFrom("t1");
     pushToStackFrom("a0");
     pushToStackFrom("a1");
@@ -474,6 +520,6 @@ void CodeGenerator::loadRegs() {
     popFromStackTo("a0");
     popFromStackTo("t1");
     popFromStackTo("t0");*/
-   // popFromStackTo("s0");
-   // popFromStackTo("sp");
+    // popFromStackTo("s0");
+    // popFromStackTo("sp");
 }

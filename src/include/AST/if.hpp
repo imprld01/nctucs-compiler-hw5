@@ -13,12 +13,11 @@ class IfNode : public AstNode {
            CompoundStatementNode *p_body, CompoundStatementNode *p_else);
     ~IfNode() = default;
 
-    const ExpressionNode *getCondition() const;
+    ExpressionNode *getCondition();
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
 
-  private:
     std::unique_ptr<ExpressionNode> condition;
     std::unique_ptr<CompoundStatementNode> body;
     std::unique_ptr<CompoundStatementNode> else_body;

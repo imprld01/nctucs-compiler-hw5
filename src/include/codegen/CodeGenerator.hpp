@@ -93,6 +93,12 @@ class CodeGenerator : public AstNodeVisitor {
         "t5",
         "t6",
     };
+
+    void dumpLabel(int);
+    int labelCnt = 0;
+    bool ifCond = false;
+    int elseLabel = -1;
+    int doneLabel = -1;
 };
 
 #endif
