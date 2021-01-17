@@ -27,7 +27,7 @@ void CodeGenerator::dumpInstrs(const char *format, ...) {
 }
 
 void CodeGenerator::dumpGloblVar(const string &varName, const PType &varType) {
-    if (varType.isPrimitiveInteger()) {
+    if (varType.isPrimitiveInteger() || varType.isPrimitiveBool()) {
         dumpInstrs(".comm %s, 4, 4\n", varName.c_str());
     }  //
     else {
@@ -36,7 +36,8 @@ void CodeGenerator::dumpGloblVar(const string &varName, const PType &varType) {
 }
 
 void CodeGenerator::dumpGloblConst(const string &varName, const Constant &cnst) {
-    if (cnst.getTypePtr()->isPrimitiveInteger()) {
+    auto t = cnst.getTypePtr();
+    if (t->isPrimitiveInteger()) {
         dumpInstrs(".section    .rodata\n");
         dumpInstrs("    .align 2\n");
         dumpInstrs("    .globl %s\n", varName.c_str());
@@ -44,8 +45,19 @@ void CodeGenerator::dumpGloblConst(const string &varName, const Constant &cnst) 
         dumpInstrs("%s:\n", varName.c_str());
         dumpInstrs("    .word %d\n", cnst.integer());
     }  //
-    else {
+    else if (t->isPrimitiveBool()) {
+        dumpInstrs(".section    .rodata\n");
+        dumpInstrs("    .align 2\n");
+        dumpInstrs("    .globl %s\n", varName.c_str());
+        dumpInstrs("    .type %s, @object\n", varName.c_str());
+        dumpInstrs("%s:\n", varName.c_str());
+        dumpInstrs("    .word %d\n", cnst.boolean() ? 1 : 0);
+    } else if (t->isString()) {
         // TODO
+        dumpInstrs(".section    .rodata\n");
+        dumpInstrs("    .align 2\n");
+        dumpInstrs("%s:\n", varName.c_str());
+        dumpInstrs("    .string \"%s\"\n", cnst.string());
     }
 }
 
@@ -98,7 +110,9 @@ void CodeGenerator::prepareLocal(const SymbolTable &table) {
                 if (t.isPrimitiveInteger() || t.isPrimitiveBool()) {
                     space = 4;
                 }  //
-                else {
+                else if (t.isPrimitiveString()) {
+                    // space = e.getAttribute()
+                } else {
                     // TODO
                 }
                 break;
