@@ -94,6 +94,7 @@ void CodeGenerator::prepareLocal(const SymbolTable &table) {
             case Kind::kConstantKind:
             case Kind::kVariableKind:
             case Kind::kParameterKind:
+            case Kind::kLoopVarKind:
                 if (t.isPrimitiveInteger()) {
                     space = 4;
                 }  //
@@ -128,6 +129,9 @@ void CodeGenerator::prepareLocal(const SymbolTable &table) {
                     // TODO
                 }
                 pcnt++;
+                break;
+            case Kind::kLoopVarKind:
+                // nothing
                 break;
         }
         dumpInstrs("// saved\n");
