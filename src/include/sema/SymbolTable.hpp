@@ -1,19 +1,19 @@
 #ifndef __SEMA_SYMBOL_TABLE_H
 #define __SEMA_SYMBOL_TABLE_H
 
-#include "AST/PType.hpp"
-#include "AST/function.hpp"
-
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <vector>
 
+#include "AST/PType.hpp"
+#include "AST/function.hpp"
+
 /*
  * Conform to C++ Core Guidelines C.182
  */
 class Attribute {
-  public:
+   public:
     Attribute(const Constant *p_constant);
     Attribute(const FunctionNode::Decls *p_parameters);
     ~Attribute() = default;
@@ -21,8 +21,9 @@ class Attribute {
     const Constant *constant() const;
     const FunctionNode::Decls *parameters() const;
 
-  private:
-    enum class Tag { kConstantValue, kParameterDecls };
+   private:
+    enum class Tag { kConstantValue,
+                     kParameterDecls };
     Tag type;
 
     union {
@@ -33,7 +34,7 @@ class Attribute {
 };
 
 class SymbolEntry {
-  public:
+   public:
     enum class KindEnum : uint8_t {
         kProgramKind,
         kFunctionKind,
@@ -64,7 +65,9 @@ class SymbolEntry {
 
     void setError();
 
-  private:
+    int stackLoc;
+
+   private:
     const std::string &name;
     const KindEnum kind;
     const size_t level;
@@ -78,7 +81,7 @@ class SymbolEntry {
 };
 
 class SymbolTable {
-  public:
+   public:
     SymbolTable() = default;
     ~SymbolTable() = default;
 
@@ -94,13 +97,13 @@ class SymbolTable {
                            const FunctionNode::Decls *p_parameters,
                            const SymbolEntry *p_prev);
 
-  private:
+   private:
     // general info
     std::vector<std::unique_ptr<SymbolEntry>> entries;
 };
 
 class SymbolManager {
-  public:
+   public:
     SymbolManager(const bool opt_dmp);
     ~SymbolManager();
 
@@ -128,7 +131,7 @@ class SymbolManager {
     void reconstructHashTableFromSymbolTable(const SymbolTable *table);
     void removeSymbolsFromHashTable(const SymbolTable *table);
 
-  private:
+   private:
     std::vector<SymbolTable *> in_use_tables;
 
     // hold tables for other visitors to use

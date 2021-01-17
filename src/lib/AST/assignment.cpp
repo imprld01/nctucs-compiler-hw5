@@ -6,11 +6,11 @@ AssignmentNode::AssignmentNode(const uint32_t line, const uint32_t col,
                                ExpressionNode *p_expr)
     : AstNode{line, col}, lvalue(p_lvalue), expr(p_expr) {}
 
-const VariableReferenceNode *AssignmentNode::getLvalue() const {
+VariableReferenceNode *AssignmentNode::getLvalue()  {
     return lvalue.get();
 }
 
-const ExpressionNode *AssignmentNode::getExpr() const { return expr.get(); }
+ExpressionNode *AssignmentNode::getExpr()  { return expr.get(); }
 
 void AssignmentNode::accept(AstNodeVisitor &p_visitor) {
     p_visitor.visit(*this);

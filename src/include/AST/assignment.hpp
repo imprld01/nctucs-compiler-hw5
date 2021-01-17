@@ -13,8 +13,8 @@ class AssignmentNode : public AstNode {
                    VariableReferenceNode *p_lvalue, ExpressionNode *p_expr);
     ~AssignmentNode() = default;
 
-    const VariableReferenceNode *getLvalue() const;
-    const ExpressionNode *getExpr() const;
+     VariableReferenceNode *getLvalue() ;
+     ExpressionNode *getExpr() ;
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;

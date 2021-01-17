@@ -12,11 +12,11 @@ const char *BinaryOperatorNode::getOpCString() const {
     return kOpString[static_cast<size_t>(op)];
 }
 
-const ExpressionNode *BinaryOperatorNode::getLeftOperand() const {
+ExpressionNode *BinaryOperatorNode::getLeftOperand() const {
     return left.get();
 }
 
-const ExpressionNode *BinaryOperatorNode::getRightOperand() const {
+ExpressionNode *BinaryOperatorNode::getRightOperand() const {
     return right.get();
 }
 
