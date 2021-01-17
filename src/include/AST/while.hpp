@@ -18,7 +18,6 @@ class WhileNode : public AstNode {
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
 
-  private:
     std::unique_ptr<ExpressionNode> condition;
     std::unique_ptr<CompoundStatementNode> body;
 };

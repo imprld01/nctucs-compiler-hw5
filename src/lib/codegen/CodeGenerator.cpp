@@ -267,16 +267,24 @@ void CodeGenerator::pushToStackFrom(const char *reg) {
 
 void CodeGenerator::visit(BinaryOperatorNode &p_bin_op) {
     dumpInstrs("// binary starts\n");
+    bool __ifCond = ifCond;
+    bool __whileCond = whileCond;
+    ifCond = whileCond = false;
     p_bin_op.getLeftOperand()->accept(*this);
     p_bin_op.getRightOperand()->accept(*this);
     popFromStackTo("t1");
     popFromStackTo("t0");
+    ifCond = __ifCond;
+    whileCond = __whileCond;
 
-    if (ifCond) {
+    if (ifCond || whileCond) {
         string b;
         switch (p_bin_op.getOp()) {
             case Operator::kEqualOp:
                 b = "bne";
+                break;
+            case Operator::kNotEqualOp:
+                b = "beq";
                 break;
             case Operator::kLessOp:
                 b = "bge";
@@ -290,8 +298,12 @@ void CodeGenerator::visit(BinaryOperatorNode &p_bin_op) {
             case Operator::kGreaterOrEqualOp:
                 b = "blt";
                 break;
+            default:
+                dumpInstrs(p_bin_op.getOpCString());
+                b = "xxx";
+                break;
         }
-        dumpInstrs("    %s t0, t1, L%d\n", b.c_str(), elseLabel);
+        dumpInstrs("    %s t0, t1, L%d\n", b.c_str(), ifCond ? elseLabel : doneLabel);
     }
 
     else {
@@ -432,21 +444,40 @@ void CodeGenerator::visit(IfNode &p_if) {
 
     ifCond = true;
     cond->accept(*this);
+    ifCond = false;
+    
     dumpLabel(mainLabel);
     body->accept(*this);
     dumpInstrs("    j L%d\n", doneLabel);
     dumpLabel(elseLabel);
     if (elze) elze->accept(*this);
     dumpLabel(doneLabel);
-    ifCond = false;
 }
 
 void CodeGenerator::visit(WhileNode &p_while) {
+    
+    whileLabel = labelCnt++;
+    doneLabel = labelCnt++;
+
+    dumpLabel(whileLabel);
+    whileCond = true;
+    p_while.condition->accept(*this);
+    whileCond = false;
+    p_while.body->accept(*this);
+    dumpInstrs("    j L%d\n", whileLabel);
+    dumpLabel(doneLabel);
 }
 
 void CodeGenerator::visit(ForNode &p_for) {
     // Reconstruct the hash table for looking up the symbol entry
     symbol_manager->reconstructHashTableFromSymbolTable(p_for.getSymbolTable());
+
+    auto l = p_for.getLowerBoundNode();
+    auto u = p_for.getUpperBoundNode();
+    int t = u->getConstantPtr()->integer() - l->getConstantPtr()->integer();
+
+    for (int i = 0; i < t; i++)
+        p_for.body->accept(*this);
 
     // Remove the entries in the hash table
     symbol_manager->removeSymbolsFromHashTable(p_for.getSymbolTable());

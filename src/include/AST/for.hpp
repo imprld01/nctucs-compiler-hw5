@@ -27,7 +27,6 @@ class ForNode : public AstNode {
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
 
-  private:
     std::unique_ptr<DeclNode> var_decl;
     std::unique_ptr<AssignmentNode> initial_statement;
     std::unique_ptr<ConstantValueNode> condition;

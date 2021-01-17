@@ -99,6 +99,9 @@ class CodeGenerator : public AstNodeVisitor {
     bool ifCond = false;
     int elseLabel = -1;
     int doneLabel = -1;
+
+    bool whileCond = false;
+    int whileLabel = -1;
 };
 
 #endif
