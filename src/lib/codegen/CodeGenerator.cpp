@@ -95,7 +95,7 @@ void CodeGenerator::prepareLocal(const SymbolTable &table) {
             case Kind::kVariableKind:
             case Kind::kParameterKind:
             case Kind::kLoopVarKind:
-                if (t.isPrimitiveInteger()) {
+                if (t.isPrimitiveInteger() || t.isPrimitiveBool()) {
                     space = 4;
                 }  //
                 else {
@@ -109,7 +109,7 @@ void CodeGenerator::prepareLocal(const SymbolTable &table) {
         dumpInstrs("// save param for %s\n", e.getNameCString());
         switch (k) {
             case Kind::kConstantKind:
-                if (t.isPrimitiveInteger()) {
+                if (t.isPrimitiveInteger() || t.isPrimitiveBool()) {
                     auto ptrcnst = e.getAttribute().constant();
                     dumpInstrs("    li t0, %d\n", ptrcnst->integer());
                     dumpInstrs("    sw t0, %d(s0)\n", e.stackLoc);
@@ -122,7 +122,7 @@ void CodeGenerator::prepareLocal(const SymbolTable &table) {
                 // nothing
                 break;
             case Kind::kParameterKind:
-                if (t.isPrimitiveInteger()) {
+                if (t.isPrimitiveInteger() || t.isPrimitiveBool()) {
                     dumpInstrs("    sw %s, %d(s0)\n", regs[pcnt].c_str(), e.stackLoc);
                 }  //
                 else {
@@ -204,11 +204,22 @@ void CodeGenerator::visit(ConstantValueNode &p_constant_value) {
     auto ptr = p_constant_value.getTypePtr();
     auto t = *ptr;
     auto cnst = p_constant_value.getConstantPtr();
-    if (t.isPrimitiveInteger()) {
-        dumpInstrs("    li t0, %d\n", cnst->integer());
-        pushToStackFrom("t0");
+
+    if (ifCond || whileCond) {
+        if (t.isPrimitiveBool()) {
+            if (cnst->boolean()) {
+            } else {
+                dumpInstrs("    j L%d\n", ifCond ? elseLabel : doneLabel);
+            }
+        }
     } else {
-        // TODO
+        if (t.isPrimitiveInteger()) {
+            dumpInstrs("    li t0, %d\n", cnst->integer());
+            pushToStackFrom("t0");
+        } else if (t.isPrimitiveBool()) {
+            dumpInstrs("    li t0, %d\n", cnst->boolean() ? 1 : 0);
+            pushToStackFrom("t0");
+        }
     }
     dumpInstrs("// const ends\n");
 }
@@ -271,15 +282,24 @@ void CodeGenerator::pushToStackFrom(const char *reg) {
 
 void CodeGenerator::visit(BinaryOperatorNode &p_bin_op) {
     dumpInstrs("// binary starts\n");
+
     bool __ifCond = ifCond;
     bool __whileCond = whileCond;
+    int __mainLabel = mainLabel;
+    int __elseLabel = elseLabel;
+    int __doneLabel = doneLabel;
     ifCond = whileCond = false;
+
     p_bin_op.getLeftOperand()->accept(*this);
     p_bin_op.getRightOperand()->accept(*this);
     popFromStackTo("t1");
     popFromStackTo("t0");
+
     ifCond = __ifCond;
     whileCond = __whileCond;
+    mainLabel = __mainLabel;
+    elseLabel = __elseLabel;
+    doneLabel = __doneLabel;
 
     if (ifCond || whileCond) {
         string b;
@@ -302,12 +322,24 @@ void CodeGenerator::visit(BinaryOperatorNode &p_bin_op) {
             case Operator::kGreaterOrEqualOp:
                 b = "blt";
                 break;
-            default:
-                dumpInstrs(p_bin_op.getOpCString());
-                b = "xxx";
+        }
+        if (b.size()) {
+            dumpInstrs("    %s t0, t1, L%d\n", b.c_str(), ifCond ? elseLabel : doneLabel);
+            dumpInstrs("// binary ends\n");
+            return;
+        }
+        switch (p_bin_op.getOp()) {
+            case Operator::kAndOp:
+                dumpInstrs("    beq t0, zero, L%d\n", b.c_str(), ifCond ? elseLabel : doneLabel);
+                dumpInstrs("    beq t1, zero, L%d\n", b.c_str(), ifCond ? elseLabel : doneLabel);
+                break;
+            case Operator::kOrOp:
+                dumpInstrs("    bne t0, zero, L%d\n", b.c_str(), mainLabel);
+                dumpInstrs("    bne t1, zero, L%d\n", b.c_str(), mainLabel);
+                dumpInstrs("    j L%d\n", b.c_str(), ifCond ? elseLabel : doneLabel);
                 break;
         }
-        dumpInstrs("    %s t0, t1, L%d\n", b.c_str(), ifCond ? elseLabel : doneLabel);
+        dumpInstrs("// binary ends\n");
     }
 
     else {
@@ -328,27 +360,98 @@ void CodeGenerator::visit(BinaryOperatorNode &p_bin_op) {
             case Operator::kMultiplyOp:
                 dumpInstrs("    mul t0, t0, t1\n");
                 break;
+            case Operator::kAndOp:
+                dumpInstrs("    and t0, t0, t1\n");
+                break;
+            case Operator::kOrOp:
+                dumpInstrs("    or  t0, t0, t1\n");
+                break;
+            case Operator::kEqualOp:
+                dumpInstrs("    sub  t0, t0, t1\n");
+                dumpInstrs("    snez t0, t0\n");
+                break;
+            case Operator::kNotEqualOp:
+                dumpInstrs("    sub  t0, t0, t1\n");
+                dumpInstrs("    seqz t0, t0\n");
+                break;
+            case Operator::kLessOp:
+                dumpInstrs("    sub  t0, t0, t1\n");
+                dumpInstrs("    sltz t0, t0\n");
+                break;
+            case Operator::kGreaterOp:
+                dumpInstrs("    sub  t0, t0, t1\n");
+                dumpInstrs("    sgtz t0, t0\n");
+                break;
+            case Operator::kLessOrEqualOp:
+                dumpInstrs("    sub  t0, t0, t1\n");
+                dumpInstrs("    sltz t0, t0\n");
+                dumpInstrs("    seqz t0, t0\n");
+                break;
+            case Operator::kGreaterOrEqualOp:
+                dumpInstrs("    sub  t0, t0, t1\n");
+                dumpInstrs("    sgtz t0, t0\n");
+                dumpInstrs("    seqz t0, t0\n");
+                break;
         }
         pushToStackFrom("t0");
+        dumpInstrs("// binary ends\n");
     }
-    dumpInstrs("// binary ends\n");
 }
 
 void CodeGenerator::visit(UnaryOperatorNode &p_un_op) {
+    dumpInstrs("// unary starts\n");
+
+    bool __ifCond = ifCond;
+    bool __whileCond = whileCond;
+    int __mainLabel = mainLabel;
+    int __elseLabel = elseLabel;
+    int __doneLabel = doneLabel;
+    ifCond = whileCond = false;
+
     p_un_op.visitChildNodes(*this);
     popFromStackTo("t0");
-    // assert is integer
-    switch (p_un_op.getOp()) {
-        case Operator::kNegOp:
-            dumpInstrs("    li  t1, -1\n");
-            dumpInstrs("    mul t0, t0, t1\n");
-            break;
+
+    ifCond = __ifCond;
+    whileCond = __whileCond;
+    mainLabel = __mainLabel;
+    elseLabel = __elseLabel;
+    doneLabel = __doneLabel;
+
+    if (ifCond || whileCond) {
+        switch (p_un_op.getOp()) {
+            case Operator::kNotOp:
+                dumpInstrs("    bne t0, zero, L%d\n", ifCond ? elseLabel : doneLabel);
+                break;
+        }
     }
-    pushToStackFrom("t0");
+
+    else {
+        switch (p_un_op.getOp()) {
+            case Operator::kNegOp:
+                dumpInstrs("    li  t1, -1\n");
+                dumpInstrs("    mul t0, t0, t1\n");
+                break;
+            case Operator::kNotOp:
+                dumpInstrs("    li   t0, 1\n");
+                dumpInstrs("    addi t0, t0, -1\n");
+                break;
+        }
+        pushToStackFrom("t0");
+    }
+
+    dumpInstrs("// uanry ends\n");
 }
 
 void CodeGenerator::visit(FunctionInvocationNode &p_func_invocation) {
     dumpInstrs("// invoke %s\n", p_func_invocation.getNameCString());
+
+    bool __ifCond = ifCond;
+    bool __whileCond = whileCond;
+    int __mainLabel = mainLabel;
+    int __elseLabel = elseLabel;
+    int __doneLabel = doneLabel;
+    ifCond = whileCond = false;
+
     // pass arguments
     auto &args = p_func_invocation.getArguments();
     for (int i = 0; i < args.size(); i++) {
@@ -365,6 +468,18 @@ void CodeGenerator::visit(FunctionInvocationNode &p_func_invocation) {
     dumpInstrs("    jal ra, %s\n", p_func_invocation.getNameCString());
     loadRegs();
     pushToStackFrom("a0");
+
+    ifCond = __ifCond;
+    whileCond = __whileCond;
+    mainLabel = __mainLabel;
+    elseLabel = __elseLabel;
+    doneLabel = __doneLabel;
+
+    if (ifCond || whileCond) {
+        popFromStackTo("t0");
+        dumpInstrs("    beq t0, zero, L%d\n", ifCond ? elseLabel : doneLabel);
+    }
+
     dumpInstrs("// %s invoked\n", p_func_invocation.getNameCString());
 }
 
@@ -372,8 +487,9 @@ void CodeGenerator::visit(VariableReferenceNode &p_variable_ref) {
     dumpInstrs("// var ref for %s starts\n", p_variable_ref.getNameCString());
     const char *varName = p_variable_ref.getNameCString();
     const SymbolEntry &e = *symbol_manager->lookup(varName);
+    auto t = e.getTypePtr();
 
-    if (e.getTypePtr()->isPrimitiveInteger()) {
+    if (t->isPrimitiveInteger() || t->isPrimitiveBool()) {
         // is global
         if (e.getLevel() == 0) {
             dumpInstrs("// var ref for %s is global\n", p_variable_ref.getNameCString());
@@ -388,7 +504,15 @@ void CodeGenerator::visit(VariableReferenceNode &p_variable_ref) {
     } else {
         // TODO
     }
-    pushToStackFrom("t0");
+
+    if (ifCond || whileCond) {
+        if (t->isPrimitiveBool()) {
+            dumpInstrs("    beq t0, zero, L%d\n", ifCond ? elseLabel : doneLabel);
+        }
+    } else {
+        pushToStackFrom("t0");
+    }
+
     dumpInstrs("// var ref ends\n");
 }
 
@@ -442,8 +566,8 @@ void CodeGenerator::visit(IfNode &p_if) {
     auto body = p_if.body.get();
     auto elze = p_if.else_body.get();
 
+    mainLabel = labelCnt++;
     elseLabel = labelCnt++;
-    int mainLabel = labelCnt++;
     doneLabel = labelCnt++;
 
     ifCond = true;
@@ -459,15 +583,15 @@ void CodeGenerator::visit(IfNode &p_if) {
 }
 
 void CodeGenerator::visit(WhileNode &p_while) {
-    whileLabel = labelCnt++;
+    mainLabel = labelCnt++;
     doneLabel = labelCnt++;
 
-    dumpLabel(whileLabel);
+    dumpLabel(mainLabel);
     whileCond = true;
     p_while.condition->accept(*this);
     whileCond = false;
     p_while.body->accept(*this);
-    dumpInstrs("    j L%d\n", whileLabel);
+    dumpInstrs("    j L%d\n", mainLabel);
     dumpLabel(doneLabel);
 }
 

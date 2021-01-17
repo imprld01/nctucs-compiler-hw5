@@ -87,7 +87,6 @@ class CodeGenerator : public AstNodeVisitor {
         "a5",
         "a6",
         "a7",
-        "a8",
         "t3",
         "t4",
         "t5",
@@ -96,12 +95,11 @@ class CodeGenerator : public AstNodeVisitor {
 
     void dumpLabel(int);
     int labelCnt = 0;
-    bool ifCond = false;
+    int mainLabel = -1;
     int elseLabel = -1;
     int doneLabel = -1;
-
+    bool ifCond = false;
     bool whileCond = false;
-    int whileLabel = -1;
 };
 
 #endif
