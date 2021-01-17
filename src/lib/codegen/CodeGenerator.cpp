@@ -445,7 +445,7 @@ void CodeGenerator::visit(IfNode &p_if) {
     ifCond = true;
     cond->accept(*this);
     ifCond = false;
-    
+
     dumpLabel(mainLabel);
     body->accept(*this);
     dumpInstrs("    j L%d\n", doneLabel);
@@ -455,7 +455,6 @@ void CodeGenerator::visit(IfNode &p_if) {
 }
 
 void CodeGenerator::visit(WhileNode &p_while) {
-    
     whileLabel = labelCnt++;
     doneLabel = labelCnt++;
 
@@ -471,13 +470,31 @@ void CodeGenerator::visit(WhileNode &p_while) {
 void CodeGenerator::visit(ForNode &p_for) {
     // Reconstruct the hash table for looking up the symbol entry
     symbol_manager->reconstructHashTableFromSymbolTable(p_for.getSymbolTable());
+    prepareLocal(*p_for.getSymbolTable());
 
+    int flabel = labelCnt++;
+    int dlabel = labelCnt++;
     auto l = p_for.getLowerBoundNode();
     auto u = p_for.getUpperBoundNode();
-    int t = u->getConstantPtr()->integer() - l->getConstantPtr()->integer();
+    int lval = l->getConstantPtr()->integer();
+    int uval = u->getConstantPtr()->integer();
 
-    for (int i = 0; i < t; i++)
-        p_for.body->accept(*this);
+    auto i = p_for.var_decl->getVariables()[0]->getNameCString();
+    auto iloc = symbol_manager->lookup(i);
+    dumpInstrs("    li t0, %d\n", lval);
+    dumpInstrs("    sw t0, %d(s0)\n", iloc->stackLoc);
+
+    dumpLabel(flabel);
+    dumpInstrs("    lw t0, %d(s0)\n", iloc->stackLoc);
+    dumpInstrs("    li t1, %d\n", uval);
+    dumpInstrs("    bge t0, t1, L%d\n", dlabel);
+
+    p_for.body->accept(*this);
+    dumpInstrs("    lw t0, %d(s0)\n", iloc->stackLoc);
+    dumpInstrs("    addi t0, t0, 1\n");
+    dumpInstrs("    sw t0, %d(s0)\n", iloc->stackLoc);
+    dumpInstrs("    j L%d\n", flabel);
+    dumpLabel(dlabel);
 
     // Remove the entries in the hash table
     symbol_manager->removeSymbolsFromHashTable(p_for.getSymbolTable());
