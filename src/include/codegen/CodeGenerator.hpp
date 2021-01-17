@@ -72,9 +72,11 @@ class CodeGenerator : public AstNodeVisitor {
     void saveRegs(const char *);
     void saveRegs(const char *, const char *);
     void saveRegs(const char *, const char *, const char *);
+    void saveRegs();
     void loadRegs(const char *);
     void loadRegs(const char *, const char *);
     void loadRegs(const char *, const char *, const char *);
+    void loadRegs();
 
     const std::vector<string> regs = {
         "a0",

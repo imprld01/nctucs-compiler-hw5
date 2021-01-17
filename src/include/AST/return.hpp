@@ -12,7 +12,7 @@ class ReturnNode : public AstNode {
                ExpressionNode *p_retval);
     ~ReturnNode() = default;
 
-    const ExpressionNode *getRetval() const;
+    ExpressionNode *getRetval() const;
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;

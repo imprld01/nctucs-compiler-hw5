@@ -5,7 +5,7 @@ ReturnNode::ReturnNode(const uint32_t line, const uint32_t col,
                        ExpressionNode *p_retval)
     : AstNode{line, col}, retval(p_retval) {}
 
-const ExpressionNode *ReturnNode::getRetval() const { return retval.get(); }
+ExpressionNode *ReturnNode::getRetval() const { return retval.get(); }
 
 void ReturnNode::accept(AstNodeVisitor &p_visitor) { p_visitor.visit(*this); }
 

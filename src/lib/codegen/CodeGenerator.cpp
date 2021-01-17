@@ -249,12 +249,14 @@ void CodeGenerator::visit(CompoundStatementNode &p_compound_statement) {
 }
 
 void CodeGenerator::visit(PrintNode &p_print) {
-    dumpInstrs("// print starts -----\n");
+    dumpInstrs("// print starts\n");
     p_print.visitChildNodes(*this);
     // now the value is in stack
     popFromStackTo("a0");
+    saveRegs();
     dumpInstrs("    jal ra, printInt\n");
-    dumpInstrs("// print ends -----\n");
+    loadRegs();
+    dumpInstrs("// print ends\n");
 }
 
 void CodeGenerator::popFromStackTo(const char *reg) {
@@ -316,10 +318,15 @@ void CodeGenerator::visit(FunctionInvocationNode &p_func_invocation) {
         dumpInstrs("//// %dth arg\n", i);
         auto &arg = *args[i];
         arg.accept(*this);
+        // popFromStackTo(regs[i].c_str());
+    }
+    for (int i = args.size() - 1; i>=0; i--) {
         popFromStackTo(regs[i].c_str());
     }
     dumpInstrs("////\n");
+    saveRegs();
     dumpInstrs("    jal ra, %s\n", p_func_invocation.getNameCString());
+    loadRegs();
     pushToStackFrom("a0");
     dumpInstrs("// %s invoked\n", p_func_invocation.getNameCString());
 }
@@ -341,8 +348,7 @@ void CodeGenerator::visit(VariableReferenceNode &p_variable_ref) {
             dumpInstrs("// var ref for %s is local\n", p_variable_ref.getNameCString());
             dumpInstrs("    lw t0, %d(s0)\n", e.stackLoc);
         }
-    }
-    else {
+    } else {
         // TODO
     }
     pushToStackFrom("t0");
@@ -401,7 +407,7 @@ void CodeGenerator::visit(ForNode &p_for) {
 }
 
 void CodeGenerator::visit(ReturnNode &p_return) {
-    p_return.visitChildNodes(*this);
+    p_return.getRetval()->accept(*this);
     // assign value to a0
     popFromStackTo("a0");
 }
@@ -434,4 +440,40 @@ void CodeGenerator::loadRegs(const char *a, const char *b, const char *c) {
     popFromStackTo(c);
     popFromStackTo(b);
     popFromStackTo(a);
+}
+
+void CodeGenerator::saveRegs() {
+   // pushToStackFrom("sp");
+   // pushToStackFrom("s0");
+  /*  pushToStackFrom("t0");
+    pushToStackFrom("t1");
+    pushToStackFrom("a0");
+    pushToStackFrom("a1");
+    pushToStackFrom("a2");
+    pushToStackFrom("a3");
+    pushToStackFrom("a4");
+    pushToStackFrom("a5");
+    pushToStackFrom("a6");*/
+    /*pushToStackFrom("t3");
+    pushToStackFrom("t4");
+    pushToStackFrom("t5");
+    pushToStackFrom("t6");*/
+}
+
+void CodeGenerator::loadRegs() {
+    /*popFromStackTo("t6");
+    popFromStackTo("t5");
+    popFromStackTo("t4");
+    popFromStackTo("t3");*/
+    /*popFromStackTo("a6");
+    popFromStackTo("a5");
+    popFromStackTo("a4");
+    popFromStackTo("a3");
+    popFromStackTo("a2");
+    popFromStackTo("a1");
+    popFromStackTo("a0");
+    popFromStackTo("t1");
+    popFromStackTo("t0");*/
+   // popFromStackTo("s0");
+   // popFromStackTo("sp");
 }
